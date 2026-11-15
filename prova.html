@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Esercizio di scrittura veloce alla tastiera</title>
+<style>
+  :root {
+    --bg: #f3f5f7;
+    --surface: #ffffff;
+    --text: #1d2733;
+    --muted: #5d6b7a;
+    --line: #d5dce3;
+    --accent: #1f5fbf;
+    --accent-text: #ffffff;
+    --ok: #1b7a3d;
+    --ok-bg: #dff3e5;
+    --ko: #b3261e;
+    --ko-bg: #fbe0de;
+    --cur-bg: #fff2b8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12171d;
+      --surface: #1b232c;
+      --text: #e6ebf0;
+      --muted: #97a4b2;
+      --line: #2e3a46;
+      --accent: #6ea8ff;
+      --accent-text: #0c1522;
+      --ok: #6fd391;
+      --ok-bg: #1d3a28;
+      --ko: #ff8b82;
+      --ko-bg: #46211e;
+      --cur-bg: #4a4216;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Georgia, "Times New Roman", serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.7rem; margin: 0 0 4px; }
+  h2 { font-size: 1.15rem; margin: 0 0 12px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  section {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+  label { display: block; font-size: 0.9rem; color: var(--muted); margin-bottom: 4px; }
+  input, select, button {
+    font: inherit;
+    color: var(--text);
+  }
+  input[type=text], input[type=number], select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--bg);
+  }
+  input:disabled, select:disabled { opacity: 0.6; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  ol, ul { margin: 0; padding-left: 22px; }
+  li { margin-bottom: 4px; }
+  details summary { cursor: pointer; font-weight: bold; font-size: 1.15rem; }
+  details[open] summary { margin-bottom: 10px; }
+
+  .hud { display: flex; flex-wrap: wrap; gap: 24px; align-items: baseline; margin-bottom: 12px; }
+  .timer { font-size: 2.6rem; font-variant-numeric: tabular-nums; font-weight: bold; line-height: 1; }
+  .timer.low { color: var(--ko); }
+  .stat { color: var(--muted); }
+  .stat b { color: var(--text); font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+  .bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin-bottom: 14px; }
+  .bar > div { height: 100%; width: 100%; background: var(--accent); transition: width 0.25s linear; }
+
+  #words {
+    position: relative;
+    height: 7.2em;
+    overflow: hidden;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--bg);
+    font-size: 1.35rem;
+    line-height: 2.2rem;
+    margin-bottom: 12px;
+    user-select: none;
+  }
+  #words span { padding: 2px 4px; border-radius: 4px; margin-right: 2px; display: inline-block; line-height: 1.6; }
+  #words span.cur { background: var(--cur-bg); }
+  #words span.cur.bad { background: var(--ko-bg); color: var(--ko); }
+  #words span.ok { color: var(--ok); }
+  #words span.ko { color: var(--ko); text-decoration: line-through; }
+
+  #typing { font-size: 1.3rem; padding: 12px; }
+
+  .row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+  button {
+    padding: 10px 16px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    cursor: pointer;
+  }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: bold; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .msg { color: var(--ko); min-height: 1.4em; margin: 8px 0 0; }
+  #results[hidden] { display: none; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); }
+  .pass { color: var(--ok); font-weight: bold; }
+  .fail { color: var(--ko); font-weight: bold; }
+  .verdict { font-size: 1.15rem; margin: 12px 0 0; }
+  footer { color: var(--muted); font-size: 0.85rem; text-align: center; margin-top: 24px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Scrittura veloce alla tastiera</h1>
+  <p class="sub">Scrivi le parole della tua materia il più in fretta e con meno errori possibile.</p>
+
+  <section aria-labelledby="h-dati">
+    <h2 id="h-dati">1. I tuoi dati</h2>
+    <div class="grid">
+      <div>
+        <label for="nome">Nome e cognome</label>
+        <input type="text" id="nome" autocomplete="off" placeholder="Es. Maria Rossi">
+      </div>
+      <div>
+        <label for="classe">Classe</label>
+        <input type="text" id="classe" autocomplete="off" placeholder="Es. 2ªB">
+      </div>
+      <div>
+        <label for="materia">Materia</label>
+        <select id="materia"></select>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-obiettivi">
+    <h2 id="h-obiettivi">2. Gli obiettivi</h2>
+    <div class="grid">
+      <div>
+        <label for="durata">Durata della prova</label>
+        <select id="durata">
+          <option value="30">30 secondi</option>
+          <option value="60" selected>1 minuto</option>
+          <option value="120">2 minuti</option>
+          <option value="180">3 minuti</option>
+        </select>
+      </div>
+      <div>
+        <label for="obWpm">Velocità da raggiungere (parole al minuto)</label>
+        <input type="number" id="obWpm" min="1" max="200" value="20">
+      </div>
+      <div>
+        <label for="obAcc">Precisione minima (%)</label>
+        <input type="number" id="obAcc" min="1" max="100" value="90">
+      </div>
+    </div>
+    <p class="sub" style="margin:12px 0 0">Una parola al minuto equivale a 5 caratteri corretti (spazi compresi) al minuto.</p>
+  </section>
+
+  <section>
+    <details open>
+      <summary>Istruzioni</summary>
+      <ol>
+        <li>Scrivi il tuo nome e la tua classe, poi scegli la materia.</li>
+        <li>Imposta la durata e gli obiettivi, oppure lascia quelli proposti.</li>
+        <li>Clicca nella casella di scrittura qui sotto. Il tempo parte appena scrivi la prima lettera.</li>
+        <li>Scrivi la parola evidenziata in giallo. Se il colore diventa rosso c’è un errore: correggi con Backspace.</li>
+        <li>Premi la barra spaziatrice (o Invio) per passare alla parola successiva.</li>
+        <li>Quando il tempo finisce vedi i risultati e se hai raggiunto gli obiettivi.</li>
+        <li>Clicca “Scarica il report” per salvare il file e consegnarlo all’insegnante.</li>
+      </ol>
+      <p class="sub" style="margin:10px 0 0">Attenzione: maiuscole, minuscole e accenti contano. Se scrivi una parola sbagliata e premi spazio, resta contata come errore.</p>
+    </details>
+  </section>
+
+  <section aria-labelledby="h-prova">
+    <h2 id="h-prova">3. La prova</h2>
+    <div class="hud">
+      <div class="timer" id="timer" aria-live="off">01:00</div>
+      <div class="stat"><b id="liveWpm">0</b> parole/min</div>
+      <div class="stat"><b id="liveAcc">100</b>% precisione</div>
+      <div class="stat"><b id="liveWords">0</b> parole scritte</div>
+    </div>
+    <div class="bar"><div id="barFill"></div></div>
+
+    <div id="words" aria-label="Parole da scrivere"></div>
+
+    <input type="text" id="typing" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Clicca qui e inizia a scrivere…" aria-label="Scrivi qui la parola evidenziata">
+    <p class="msg" id="msg" role="alert"></p>
+
+    <div class="row">
+      <button id="btnStop" disabled>Termina ora</button>
+      <button id="btnReset">Ricomincia</button>
+    </div>
+  </section>
+
+  <section id="results" hidden aria-labelledby="h-ris">
+    <h2 id="h-ris">4. Risultati</h2>
+    <table>
+      <thead><tr><th>Obiettivo</th><th>Richiesto</th><th>Ottenuto</th><th>Esito</th></tr></thead>
+      <tbody id="resBody"></tbody>
+    </table>
+    <p class="verdict" id="verdict"></p>
+    <p class="sub" id="resExtra" style="margin:8px 0 0"></p>
+    <div class="row">
+      <button class="primary" id="btnDownload">Scarica il report</button>
+    </div>
+  </section>
+
+  <footer>Esercizio di scrittura veloce · funziona nel browser, senza connessione e senza salvare dati online.</footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- Parole per materia: modifica o aggiungi liste a piacere ---------- */
+  var BANK = {
+    'Italiano': ['verbo','soggetto','predicato','aggettivo','sostantivo','articolo','pronome','avverbio','congiunzione','preposizione','analisi','frase','periodo','testo','racconto','poesia','rima','strofa','narratore','personaggio','dialogo','descrizione','riassunto','sinonimo','contrario','metafora','similitudine','punteggiatura','accento','sillaba','vocale','consonante','paragrafo','titolo','autore','romanzo','favola','leggenda','commedia','capitolo'],
+    'Storia': ['civiltà','impero','repubblica','monarchia','battaglia','romani','greci','egizi','fenici','medioevo','feudalesimo','castello','cavaliere','crociata','rinascimento','scoperta','esploratore','rivoluzione','costituzione','cittadino','democrazia','guerra','trattato','documento','fonte','cronologia','secolo','dinastia','imperatore','senato','legione','colonia','commercio','invasione','unificazione','risorgimento','patria','diritti','libertà','archivio'],
+    'Geografia': ['continente','oceano','montagna','pianura','collina','fiume','lago','mare','penisola','arcipelago','isola','vulcano','deserto','foresta','clima','temperatura','altitudine','latitudine','longitudine','equatore','meridiano','parallelo','mappa','scala','confine','regione','provincia','capoluogo','popolazione','città','villaggio','agricoltura','industria','turismo','porto','strada','ambiente','territorio','paesaggio','bussola'],
+    'Scienze': ['cellula','organismo','tessuto','energia','materia','atomo','molecola','ecosistema','habitat','specie','pianta','animale','fotosintesi','respirazione','digestione','circolazione','scheletro','muscolo','cervello','sangue','esperimento','ipotesi','osservazione','misura','laboratorio','microscopio','temperatura','pressione','gravità','magnete','elettricità','luce','suono','pianeta','sistema solare','roccia','minerale','acqua','aria','suolo'],
+    'Matematica': ['numero','somma','differenza','prodotto','quoziente','frazione','decimale','percentuale','proporzione','equazione','incognita','espressione','potenza','radice','multiplo','divisore','primo','angolo','triangolo','quadrato','rettangolo','cerchio','circonferenza','perimetro','area','volume','retta','punto','segmento','parallela','perpendicolare','simmetria','grafico','tabella','media','moda','mediana','probabilità','problema','formula','calcolo'],
+    'Informatica': ['computer','tastiera','mouse','schermo','stampante','memoria','processore','programma','software','hardware','file','cartella','documento','salvataggio','internet','browser','sito','indirizzo','password','sicurezza','rete','server','algoritmo','codice','variabile','ciclo','condizione','funzione','errore','debug','immagine','video','audio','presentazione','foglio','tabella','email','allegato','cloud','sistema operativo'],
+    'Inglese': ['book','school','teacher','student','classroom','homework','lesson','question','answer','sentence','verb','noun','adjective','family','friend','house','kitchen','garden','morning','evening','weather','sunny','rainy','breakfast','lunch','dinner','sport','music','holiday','travel','city','country','language','English','Italian','yesterday','tomorrow','always','never','because']
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+  var el = {
+    nome: $('nome'), classe: $('classe'), materia: $('materia'),
+    durata: $('durata'), obWpm: $('obWpm'), obAcc: $('obAcc'),
+    timer: $('timer'), liveWpm: $('liveWpm'), liveAcc: $('liveAcc'), liveWords: $('liveWords'),
+    bar: $('barFill'), words: $('words'), typing: $('typing'), msg: $('msg'),
+    btnStop: $('btnStop'), btnReset: $('btnReset'), btnDownload: $('btnDownload'),
+    results: $('results'), resBody: $('resBody'), verdict: $('verdict'), resExtra: $('resExtra')
+  };
+
+  var state = 'idle';           // idle | running | finished
+  var words = [], spans = [], idx = 0, results = [];
+  var total = 60, startTs = 0, endTs = 0, tick = null;
+  var goals = { wpm: 20, acc: 90 };
+  var final = null;
+
+  /* ---------- Utilità ---------- */
+  function shuffle(a) {
+    a = a.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+  function buildWords(subject) {
+    var out = [];
+    while (out.length < 400) {
+      var round = shuffle(BANK[subject]);
+      if (out.length && round[0] === out[out.length - 1]) round.push(round.shift());
+      out = out.concat(round);
+    }
+    return out;
+  }
+  function fmt(sec) {
+    sec = Math.max(0, Math.ceil(sec));
+    var m = Math.floor(sec / 60), s = sec % 60;
+    return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function clamp(v, min, max, def) {
+    v = parseFloat(v);
+    if (isNaN(v)) return def;
+    return Math.min(max, Math.max(min, v));
+  }
+  function round1(n) { return Math.round(n * 10) / 10; }
+
+  /* ---------- Calcolo statistiche ---------- */
+  function computeStats(elapsedSec) {
+    var typed = results.length;
+    var correct = 0, correctChars = 0, allChars = 0;
+    for (var i = 0; i < typed; i++) {
+      allChars += results[i].typed.length + 1;
+      if (results[i].ok) { correct++; correctChars += results[i].exp.length + 1; }
+    }
+    var minutes = Math.max(elapsedSec, 1) / 60;
+    return {
+      typed: typed,
+      correct: correct,
+      wrong: typed - correct,
+      wpm: round1(correctChars / 5 / minutes),
+      grossWpm: round1(allChars / 5 / minutes),
+      acc: typed ? round1(correct / typed * 100) : 0,
+      elapsed: elapsedSec
+    };
+  }
+  function elapsedNow() {
+    if (state === 'idle') return 0;
+    return Math.min(total, (Date.now() - startTs) / 1000);
+  }
+  function updateLive() {
+    var s = computeStats(elapsedNow());
+    el.liveWpm.textContent = Math.round(s.wpm);
+    el.liveAcc.textContent = s.typed ? Math.round(s.acc) : 100;
+    el.liveWords.textContent = s.typed;
+  }
+
+  /* ---------- Disegno delle parole ---------- */
+  function render() {
+    el.words.innerHTML = '';
+    spans = [];
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < words.length; i++) {
+      var s = document.createElement('span');
+      s.textContent = words[i];
+      frag.appendChild(s);
+      frag.appendChild(document.createTextNode(' '));
+      spans.push(s);
+    }
+    el.words.appendChild(frag);
+    el.words.scrollTop = 0;
+    markCurrent();
+  }
+  function markCurrent() {
+    for (var i = 0; i < spans.length; i++) {
+      if (i === idx) spans[i].classList.add('cur');
+      else spans[i].classList.remove('cur', 'bad');
+    }
+    if (spans[idx]) el.words.scrollTop = Math.max(0, spans[idx].offsetTop - 10);
+  }
+
+  /* ---------- Flusso della prova ---------- */
+  function lockSetup(lock) {
+    [el.nome, el.classe, el.materia, el.durata, el.obWpm, el.obAcc].forEach(function (x) { x.disabled = lock; });
+  }
+  function start() {
+    var nome = el.nome.value.trim(), classe = el.classe.value.trim();
+    if (!nome || !classe) {
+      el.msg.textContent = 'Scrivi nome e classe prima di iniziare, poi clicca di nuovo nella casella di scrittura.';
+      (!nome ? el.nome : el.classe).focus();
+      return false;
+    }
+    el.msg.textContent = '';
+    total = parseInt(el.durata.value, 10) || 60;
+    goals.wpm = clamp(el.obWpm.value, 1, 200, 20);
+    goals.acc = clamp(el.obAcc.value, 1, 100, 90);
+    el.obWpm.value = goals.wpm;
+    el.obAcc.value = goals.acc;
+    lockSetup(true);
+    state = 'running';
+    startTs = Date.now();
+    endTs = startTs + total * 1000;
+    el.btnStop.disabled = false;
+    tick = setInterval(onTick, 200);
+    onTick();
+    return true;
+  }
+  function onTick() {
+    var left = (endTs - Date.now()) / 1000;
+    if (left <= 0) { finish(false); return; }
+    el.timer.textContent = fmt(left);
+    el.timer.classList.toggle('low', left <= 10);
+    el.bar.style.width = (left / total * 100) + '%';
+    updateLive();
+  }
+  function commit(text) {
+    var ok = (text === words[idx]);
+    results.push({ exp: words[idx], typed: text, ok: ok });
+    spans[idx].classList.remove('cur', 'bad');
+    spans[idx].classList.add(ok ? 'ok' : 'ko');
+    idx++;
+    if (idx >= words.length) { finish(true); return; }
+    markCurrent();
+    updateLive();
+  }
+  function finish(early) {
+    if (state !== 'running') return;
+    state = 'finished';
+    clearInterval(tick);
+    var elapsed = early ? Math.min(total, (Date.now() - startTs) / 1000) : total;
+    // Parola a metà quando scade il tempo: non conteggiata.
+    final = computeStats(elapsed);
+    el.timer.textContent = fmt(0);
+    el.timer.classList.remove('low');
+    el.bar.style.width = '0%';
+    el.typing.value = '';
+    el.typing.disabled = true;
+    el.btnStop.disabled = true;
+    el.liveWpm.textContent = Math.round(final.wpm);
+    el.liveAcc.textContent = final.typed ? Math.round(final.acc) : 0;
+    el.liveWords.textContent = final.typed;
+    showResults();
+  }
+  function reset() {
+    clearInterval(tick);
+    state = 'idle';
+    idx = 0; results = []; final = null;
+    words = buildWords(el.materia.value);
+    render();
+    lockSetup(false);
+    el.typing.disabled = false;
+    el.typing.value = '';
+    el.btnStop.disabled = true;
+    el.msg.textContent = '';
+    el.results.hidden = true;
+    el.timer.textContent = fmt(parseInt(el.durata.value, 10) || 60);
+    el.timer.classList.remove('low');
+    el.bar.style.width = '100%';
+    el.liveWpm.textContent = '0';
+    el.liveAcc.textContent = '100';
+    el.liveWords.textContent = '0';
+  }
+
+  /* ---------- Risultati ---------- */
+  function evaluate() {
+    var okWpm = final.wpm >= goals.wpm;
+    var okAcc = final.acc >= goals.acc;
+    return { okWpm: okWpm, okAcc: okAcc, all: okWpm && okAcc };
+  }
+  function row(name, req, got, ok) {
+    return '<tr><td>' + name + '</td><td>' + req + '</td><td>' + got + '</td><td class="' +
+      (ok ? 'pass' : 'fail') + '">' + (ok ? 'Raggiunto' : 'Non raggiunto') + '</td></tr>';
+  }
+  function showResults() {
+    var ev = evaluate();
+    el.resBody.innerHTML =
+      row('Velocità', goals.wpm + ' parole/min', final.wpm + ' parole/min', ev.okWpm) +
+      row('Precisione', goals.acc + '%', final.acc + '%', ev.okAcc);
+    el.verdict.textContent = ev.all
+      ? 'Complimenti, hai raggiunto tutti gli obiettivi.'
+      : (final.typed === 0
+          ? 'Non hai scritto nessuna parola: riprova.'
+          : 'Obiettivi non raggiunti del tutto. Riprova: la velocità cresce con l’allenamento.');
+    el.verdict.className = 'verdict ' + (ev.all ? 'pass' : 'fail');
+    el.resExtra.textContent = 'Parole scritte: ' + final.typed + ' (corrette ' + final.correct +
+      ', sbagliate ' + final.wrong + ') · tempo usato: ' + Math.round(final.elapsed) + ' secondi.';
+    el.results.hidden = false;
+    el.results.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  /* ---------- Report scaricabile ---------- */
+  function buildReport() {
+    var d = new Date();
+    var data = pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear() +
+      ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    var ev = evaluate();
+    var L = [];
+    L.push('REPORT - ESERCIZIO DI SCRITTURA VELOCE ALLA TASTIERA');
+    L.push('====================================================');
+    L.push('Data e ora:    ' + data);
+    L.push('Studente:      ' + el.nome.value.trim());
+    L.push('Classe:        ' + el.classe.value.trim());
+    L.push('Materia:       ' + el.materia.value);
+    L.push('Durata:        ' + total + ' secondi (usati: ' + Math.round(final.elapsed) + ')');
+    L.push('');
+    L.push('OBIETTIVI');
+    L.push('---------');
+    L.push('Velocita richiesta:   ' + goals.wpm + ' parole/min  ->  ottenuta ' + final.wpm + '  [' + (ev.okWpm ? 'RAGGIUNTO' : 'NON RAGGIUNTO') + ']');
+    L.push('Precisione richiesta: ' + goals.acc + '%  ->  ottenuta ' + final.acc + '%  [' + (ev.okAcc ? 'RAGGIUNTA' : 'NON RAGGIUNTA') + ']');
+    L.push('ESITO FINALE: ' + (ev.all ? 'OBIETTIVI RAGGIUNTI' : 'OBIETTIVI NON RAGGIUNTI'));
+    L.push('');
+    L.push('RISULTATI');
+    L.push('---------');
+    L.push('Parole scritte:        ' + final.typed);
+    L.push('Parole corrette:       ' + final.correct);
+    L.push('Parole sbagliate:      ' + final.wrong);
+    L.push('Velocita netta:        ' + final.wpm + ' parole/min (solo parole corrette)');
+    L.push('Velocita lorda:        ' + final.grossWpm + ' parole/min (tutti i caratteri)');
+    L.push('Precisione:            ' + final.acc + '%');
+    L.push('');
+    L.push('ERRORI');
+    L.push('------');
+    var errs = results.filter(function (r) { return !r.ok; });
+    if (!errs.length) {
+      L.push('Nessun errore.');
+    } else {
+      errs.forEach(function (r, i) {
+        L.push((i + 1) + '. richiesta: "' + r.exp + '"  scritta: "' + r.typed + '"');
+      });
+    }
+    L.push('');
+    L.push('Metodo: velocita = (caratteri delle parole corrette + spazi) / 5 / minuti.');
+    return L.join('\r\n');
+  }
+  function slug(s) {
+    return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'x';
+  }
+  function download() {
+    if (!final) return;
+    var d = new Date();
+    var name = 'report_' + slug(el.nome.value) + '_' + slug(el.classe.value) + '_' +
+      slug(el.materia.value) + '_' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '.txt';
+    var blob = new Blob(['\ufeff' + buildReport()], { type: 'text/plain;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+  }
+
+  /* ---------- Eventi ---------- */
+  el.typing.addEventListener('input', function () {
+    if (state === 'finished') { el.typing.value = ''; return; }
+    var v = el.typing.value;
+    if (state === 'idle') {
+      if (v.trim() === '') { el.typing.value = ''; return; }
+      if (!start()) { el.typing.value = ''; return; }
+    }
+    if (/\s$/.test(v)) {
+      var t = v.trim();
+      el.typing.value = '';
+      if (t) commit(t);
+      return;
+    }
+    if (spans[idx]) spans[idx].classList.toggle('bad', words[idx].indexOf(v) !== 0);
+  });
+  el.typing.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      var t = el.typing.value.trim();
+      if (state === 'running' && t) { el.typing.value = ''; commit(t); }
+    }
+  });
+  el.btnStop.addEventListener('click', function () { finish(true); });
+  el.btnReset.addEventListener('click', function () { reset(); el.typing.focus(); });
+  el.btnDownload.addEventListener('click', download);
+  el.materia.addEventListener('change', function () { if (state === 'idle') reset(); });
+  el.durata.addEventListener('change', function () { if (state === 'idle') el.timer.textContent = fmt(parseInt(el.durata.value, 10) || 60); });
+
+  /* ---------- Avvio ---------- */
+  Object.keys(BANK).forEach(function (m) {
+    var o = document.createElement('option');
+    o.value = m; o.textContent = m;
+    el.materia.appendChild(o);
+  });
+  reset();
+})();
+</script>
+</body>
+</html>
